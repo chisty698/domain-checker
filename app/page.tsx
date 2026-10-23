@@ -2,7 +2,71 @@
 
 import { useEffect, useState } from "react";
 
-type Result = { tld: string; status: "available" | "taken" | "unknown" };
+type Status = "available" | "taken" | "unknown";
+type Result = { tld: string; status: Status };
+
+// Must match the list in app/api/check/route.ts
+const TLDS = ["com", "net", "org", "io", "co", "ai", "app", "dev", "xyz", "me"];
+
+function Bubble({
+  tld,
+  status,
+  loading,
+  clean,
+  dark,
+}: {
+  tld: string;
+  status: Status | null;
+  loading: boolean;
+  clean: string;
+  dark: boolean;
+}) {
+  const size =
+    "w-[72px] h-[72px] sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full flex flex-col items-center justify-center shadow-lg transition-transform duration-200 hover:scale-110";
+
+  const label =
+    status === "available"
+      ? "Free"
+      : status === "taken"
+      ? "Taken"
+      : status === "unknown"
+      ? "Can't check"
+      : "";
+
+  const color =
+    status === "available"
+      ? "bg-green-500 text-white"
+      : status === "taken"
+      ? "bg-red-500 text-white"
+      : dark
+      ? "bg-slate-700 text-slate-300"
+      : "bg-slate-200 text-slate-500";
+
+  const inner = (
+    <>
+      <span className="text-sm sm:text-lg font-bold">.{tld}</span>
+      <span className="text-[10px] sm:text-xs opacity-90">{label}</span>
+    </>
+  );
+
+  const pulse = loading && status === null ? "animate-pulse" : "";
+
+  if (status === "available") {
+    return (
+      <a
+        href={`https://www.namecheap.com/domains/registration/results/?domain=${clean}.${tld}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        title={`Buy ${clean}.${tld}`}
+        className={`${size} ${color}`}
+      >
+        {inner}
+      </a>
+    );
+  }
+
+  return <div className={`${size} ${color} ${pulse}`}>{inner}</div>;
+}
 
 export default function Home() {
   const [name, setName] = useState("");
@@ -56,15 +120,28 @@ export default function Home() {
     };
   }, [clean]);
 
-  // Show available names first, then taken, then unknown
-  const order = { available: 0, taken: 1, unknown: 2 };
-  const shown = clean
-    ? [...results].sort((a, b) => order[a.status] - order[b.status])
-    : [];
+  // Look up each ending's result by name
+  const byTld: Record<string, Status> = {};
+  if (clean) {
+    results.forEach((r) => {
+      byTld[r.tld] = r.status;
+    });
+  }
+
+  const bubble = (tld: string) => (
+    <Bubble
+      key={tld}
+      tld={tld}
+      status={byTld[tld] ?? null}
+      loading={loading}
+      clean={clean}
+      dark={dark}
+    />
+  );
 
   return (
     <main
-      className={`min-h-screen flex flex-col items-center px-4 pt-24 pb-16 transition-colors ${
+      className={`min-h-screen flex flex-col items-center px-4 pt-20 pb-16 transition-colors ${
         dark ? "bg-slate-900" : "bg-slate-50"
       }`}
     >
@@ -101,62 +178,51 @@ export default function Home() {
         }`}
       />
 
-      <div className="w-full max-w-xl mt-6 flex flex-col gap-3">
-        {clean && loading && (
-          <p className={dark ? "text-slate-500" : "text-slate-400"}>Checking...</p>
-        )}
+      {/* Bubble diagram: 3 on top, 2 left, name in the middle, 2 right, 3 below */}
+      <div className="mt-12 flex flex-col items-center gap-3 sm:gap-5">
+        <div className="flex gap-3 sm:gap-5">
+          {TLDS.slice(0, 3).map(bubble)}
+        </div>
 
-        {shown.map((r) => (
+        <div className="flex items-center gap-3 sm:gap-5">
+          <div className="flex gap-3 sm:gap-5">{TLDS.slice(3, 5).map(bubble)}</div>
+
           <div
-            key={r.tld}
-            className={`flex items-center justify-between gap-3 rounded-xl px-5 py-4 shadow-sm border ${
-              dark ? "bg-slate-800 border-slate-700" : "bg-white border-slate-200"
+            className={`w-20 sm:w-36 md:w-44 text-center break-all text-sm sm:text-xl font-semibold ${
+              dark ? "text-slate-100" : "text-slate-800"
             }`}
           >
-            <span
-              className={`text-lg truncate ${
-                dark ? "text-slate-100" : "text-slate-800"
-              }`}
-            >
-              {clean}.{r.tld}
-            </span>
-
-            <div className="flex items-center gap-3">
-              <span
-                className={
-                  r.status === "available"
-                    ? dark
-                      ? "rounded-full bg-green-900 px-3 py-1 text-sm font-medium text-green-300"
-                      : "rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700"
-                    : r.status === "taken"
-                    ? dark
-                      ? "rounded-full bg-red-900 px-3 py-1 text-sm font-medium text-red-300"
-                      : "rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-700"
-                    : dark
-                    ? "rounded-full bg-slate-700 px-3 py-1 text-sm font-medium text-slate-300"
-                    : "rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-500"
-                }
-              >
-                {r.status === "available"
-                  ? "Available"
-                  : r.status === "taken"
-                  ? "Taken"
-                  : "Can't check"}
-              </span>
-
-              {r.status === "available" && (
-                <a
-                  href={`https://www.namecheap.com/domains/registration/results/?domain=${clean}.${r.tld}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  Buy
-                </a>
-              )}
-            </div>
+            {clean || "yourname"}
           </div>
-        ))}
+
+          <div className="flex gap-3 sm:gap-5">{TLDS.slice(5, 7).map(bubble)}</div>
+        </div>
+
+        <div className="flex gap-3 sm:gap-5">
+          {TLDS.slice(7, 10).map(bubble)}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div
+        className={`mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm ${
+          dark ? "text-slate-400" : "text-slate-500"
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-green-500" /> Available (click to buy)
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-full bg-red-500" /> Taken
+        </span>
+        <span className="flex items-center gap-2">
+          <span
+            className={`w-3 h-3 rounded-full ${
+              dark ? "bg-slate-600" : "bg-slate-300"
+            }`}
+                      />{" "}
+          Can't check
+        </span>
       </div>
     </main>
   );
