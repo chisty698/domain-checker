@@ -22,7 +22,7 @@ function Bubble({
   dark: boolean;
 }) {
   const size =
-    "w-[72px] h-[72px] sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full flex flex-col items-center justify-center shadow-lg transition-transform duration-200 hover:scale-110";
+    "w-12 h-12 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full flex flex-col items-center justify-center shadow-lg transition-transform duration-200 hover:scale-110";
 
   const label =
     status === "available"
@@ -30,7 +30,7 @@ function Bubble({
       : status === "taken"
       ? "Taken"
       : status === "unknown"
-      ? "Can't check"
+      ? "N/A"
       : "";
 
   const color =
@@ -44,8 +44,8 @@ function Bubble({
 
   const inner = (
     <>
-      <span className="text-sm sm:text-lg font-bold">.{tld}</span>
-      <span className="text-[10px] sm:text-xs opacity-90">{label}</span>
+      <span className="text-[11px] sm:text-base font-bold">.{tld}</span>
+      <span className="text-[8px] sm:text-xs opacity-90">{label}</span>
     </>
   );
 
@@ -75,8 +75,8 @@ export default function Home() {
   const [dark, setDark] = useState(false);
 
   const clean = name.trim().toLowerCase();
+  const active = clean.length > 0;
 
-  // Load the saved mode (or the computer's own setting) when the page opens
   useEffect(() => {
     try {
       const saved = localStorage.getItem("theme");
@@ -86,7 +86,7 @@ export default function Home() {
         setDark(window.matchMedia("(prefers-color-scheme: dark)").matches);
       }
     } catch {
-      // storage not available: keep light mode
+      // keep light mode
     }
   }, []);
 
@@ -120,7 +120,6 @@ export default function Home() {
     };
   }, [clean]);
 
-  // Look up each ending's result by name
   const byTld: Record<string, Status> = {};
   if (clean) {
     results.forEach((r) => {
@@ -139,9 +138,18 @@ export default function Home() {
     />
   );
 
+  // The same elements stay on the page; the bubbles just grow in or collapse
+  const gap = active ? "gap-2 sm:gap-4" : "gap-0";
+  const rowClass = `flex justify-center overflow-hidden transition-all duration-500 ${gap} ${
+    active ? "max-h-[130px] opacity-100 py-2" : "max-h-0 opacity-0 py-0"
+  }`;
+  const sideClass = `flex overflow-hidden transition-all duration-500 ${gap} ${
+    active ? "max-w-[260px] opacity-100 px-2" : "max-w-0 opacity-0 px-0"
+  }`;
+
   return (
     <main
-      className={`min-h-screen flex flex-col items-center px-4 pt-20 pb-16 transition-colors ${
+      className={`min-h-screen flex flex-col items-center px-3 pt-20 pb-12 transition-colors ${
         dark ? "bg-slate-900" : "bg-slate-50"
       }`}
     >
@@ -157,7 +165,7 @@ export default function Home() {
       </button>
 
       <h1
-        className={`text-4xl font-bold mb-2 ${
+        className={`text-3xl sm:text-4xl font-bold mb-2 ${
           dark ? "text-slate-100" : "text-slate-800"
         }`}
       >
@@ -167,63 +175,61 @@ export default function Home() {
         Type a name and see which endings are free.
       </p>
 
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="yourname"
-        className={`w-full max-w-xl rounded-xl border px-5 py-4 text-xl outline-none focus:border-blue-500 shadow-sm ${
-          dark
-            ? "bg-slate-800 border-slate-600 text-slate-100 placeholder:text-slate-500"
-            : "bg-white border-slate-300 text-slate-800"
-        }`}
-      />
+      <div className="flex flex-col items-center">
+        {/* 3 bubbles above */}
+        <div className={rowClass}>{TLDS.slice(0, 3).map(bubble)}</div>
 
-      {/* Bubble diagram: 3 on top, 2 left, name in the middle, 2 right, 3 below */}
-      <div className="mt-12 flex flex-col items-center gap-3 sm:gap-5">
-        <div className="flex gap-3 sm:gap-5">
-          {TLDS.slice(0, 3).map(bubble)}
-        </div>
+        <div className="flex items-center">
+          {/* 2 bubbles on the left */}
+          <div className={sideClass}>{TLDS.slice(3, 5).map(bubble)}</div>
 
-        <div className="flex items-center gap-3 sm:gap-5">
-          <div className="flex gap-3 sm:gap-5">{TLDS.slice(3, 5).map(bubble)}</div>
-
-          <div
-            className={`w-20 sm:w-36 md:w-44 text-center break-all text-sm sm:text-xl font-semibold ${
-              dark ? "text-slate-100" : "text-slate-800"
+          {/* The search box: wide at first, smaller once you start typing */}
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="yourname"
+            autoFocus
+            className={`rounded-xl border text-center outline-none focus:border-blue-500 shadow-md transition-all duration-500 ${
+              active
+                ? "w-[120px] sm:w-56 md:w-72 px-3 sm:px-5 py-3 sm:py-4 text-base sm:text-xl"
+                : "w-[min(90vw,36rem)] px-5 py-4 text-xl"
+            } ${
+              dark
+                ? "bg-slate-800 border-slate-600 text-slate-100 placeholder:text-slate-500"
+                : "bg-white border-slate-300 text-slate-800"
             }`}
-          >
-            {clean || "yourname"}
-          </div>
+          />
 
-          <div className="flex gap-3 sm:gap-5">{TLDS.slice(5, 7).map(bubble)}</div>
+          {/* 2 bubbles on the right */}
+          <div className={sideClass}>{TLDS.slice(5, 7).map(bubble)}</div>
         </div>
 
-        <div className="flex gap-3 sm:gap-5">
-          {TLDS.slice(7, 10).map(bubble)}
-        </div>
+        {/* 3 bubbles below */}
+        <div className={rowClass}>{TLDS.slice(7, 10).map(bubble)}</div>
       </div>
 
-      {/* Legend */}
-      <div
-        className={`mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm ${
-          dark ? "text-slate-400" : "text-slate-500"
-        }`}
-      >
-        <span className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-green-500" /> Available (click to buy)
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-full bg-red-500" /> Taken
-        </span>
-        <span className="flex items-center gap-2">
-          <span
-            className={`w-3 h-3 rounded-full ${
-              dark ? "bg-slate-600" : "bg-slate-300"
-            }`}
-                      />{" "}
-          Can't check
-        </span>
-      </div>
+      {active && (
+        <div
+          className={`mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm ${
+            dark ? "text-slate-400" : "text-slate-500"
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-green-500" /> Available (click to buy)
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-red-500" /> Taken
+          </span>
+          <span className="flex items-center gap-2">
+            <span
+              className={`w-3 h-3 rounded-full ${
+                dark ? "bg-slate-600" : "bg-slate-300"
+              }`}
+            />
+            N/A = can't check
+          </span>
+        </div>
+      )}
     </main>
   );
 }
